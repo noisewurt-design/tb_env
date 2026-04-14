@@ -1,0 +1,42 @@
+https://blog.csdn.net/rhyme_seven/article/details/150273644
+
+3、Driver
+在lab文件夹下执行命令“touch rt_driver.sv”，创建名为“rt_driver.sv”的文件。
+源代码思路：
+
+
+类：声明为rt_driver类，其具有三个成员变量“rtr_io，packs，chl_packs”，具有5个任务“复位reset_gen、分发事务distribute_packs、接收并驱动事务receive_and_dri、发送事务send_gen、运行run”，同时内部初始化了new函数；
+成员变量：
+rtr_io，router_io接口，注意需要添加“virtual”关键字，否则会报错。在class内部定义接口时均需要添加“virtual”关键字；
+packs，malibox类型，存储rt_packet；
+chl_packs，malibox类型，存储rt_packet。在这里为每个输入通道均分配一个chl_packs，以能并行执行多个不同输入通道的发送transaction任务。
+new函数：
+规定packs和chl_packs[i]的大小均为1。
+reset_gen任务：
+输入参数：无；
+返回值：无；
+功能：当检测到rtr_io.reset_n低有效时，将frame_n、valid_n、din置为无效值；
+其他：在这里使用了forever，使得reset_gen任务在仿真过程中一直进行。
+distribute_packs任务：
+输入参数：无；
+返回值：无；
+功能：packs接收来自generator发送的p，并根据p的src存入对应的chl_packs中；
+其他：这里也使用了forever，使得该任务一直进行；同时使用了automatic关键字，使得p在调用distribute_packs任务时不被共享，每次执行begin…end块时，都会创建一个新的p实例。
+receive_and_dri任务：
+输入参数：无；
+返回值：无；
+功能：当检测到rtr_io.reset_n无效时，同时执行16个输入通道的send_gen任务；
+其他：在等待rtr_io.reset_n无效后，再重复10个时钟周期，以确保信号稳定之后再开始发送p；使用foreach针对每个输入通道都开启send_gen任务；在foreach内部使用fork…join_none开启一个forever进程，使用该fork形式使得无需等待该通道执行完毕就可执行其余通道的发送任务；forever进程获取该通道的p之后，再通过send_gen发送p；注意使用automatic关键字。
+send_gen任务：
+输入参数：rt_packet p;
+返回值：无；
+功能：根据router的输入特性设置din、frame_n、valid_n信号，保证p被正确发送；
+其他：发送address阶段，for循环4次，din[p.src]等于p.dst，frame_n[p.src]为低电平，valid_n[p.src]不影响该阶段因此可以通过$urandom_range设置为0/1；pad阶段，for循环5次，din[p.src]等于1，frame_n[p.src]为低电平，valid_n[p.src]为高电平；发送data阶段，依次发送每个data，这里要注意frame_n信号的变化；idle阶段，复原所有信号为无效状态；
+注意：在send_gen中需要等待时钟上升沿有效以后，再设置信号。
+run任务：
+输入参数：无；
+返回值：无：
+功能：将复位reset_gen、分发事务distribute_packs、接收并驱动事务receive_and_dri任务通过fork…join_none打包起来。
+————————————————
+版权声明：本文为CSDN博主「rhyme_seven」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/rhyme_seven/article/details/150273644
