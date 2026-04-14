@@ -1,0 +1,54 @@
+https://blog.csdn.net/rhyme_seven/article/details/150984199
+
+##  列出测试点
+注：看到什么写什么，虽然有重复，但是后面会进行整理。
+
+支持APB2.0，APB3.0（PREADY、PSLVERR），APB4.0（PPROT、PSTORB）。
+APB的时钟频率 ≤ AHB的时钟频率。
+运行期间复位，DUT是否能恢复正常状态。运行之前复位，是否成功复位。
+HADDR和PADDR在ADDR_WIDTH=16的情况下的寻址范围是否是0X0000~0XFFFF。
+APBACTIVE信号是否能控制PCLKG的输出。——>检查AOBACTIVE信号的行为是否正确。
+PCLKEN信号是否能实现HCLK分频。——>PCLKEN信号检查。
+HCLK=PCLK且APB Slave无error时，RESIGTER_RDATA=1最小RW时钟周期为3，RESIGTER_RDATA=0最小RW时钟周期为2。
+AHB：8种burst，3种size，读/写组合排列。
+HREADYOUT=1的等待状态及其error状态。
+检查HREADYOUT、HPROT、HRESP信号。
+检查PREADY、PSLVERR、PPROT、PSTORB信号。
+检查Parameter（三个）。
+多个AHB transfer传输：不同burst，不同读写，有无IDLE
+
+
+## 设计测试用例
+考虑AHB Master，设计sequence：
+Single-32b-write
+Single-32b-read
+Burst
+size随机，burst随机；
+data、addr随机；
+读/写随机，覆盖边界值；
+hprot随机；
+hrans随机。
+以上sequence随机组成，实现多个AHB transfer。
+考虑APB Slave，设计sequence：
+pready=0
+pready=1，随机时间，随机周期数（1-16）
+pslverr=0
+pslverr=1，随机时间，随机周期数（1-16）
+parameter：测试每个parameter的可能值
+频率(PCLKEN)：AHB:APB=1:1, 2:1, 4:1, 8:1, 16:1。
+以上各个组合起来测试。
+
+## 插入assertion
+注：检查AHB与APB协议规定的要求。
+
+APBACTIVE 有效时，APB工作；APBACTIVE 无效时，APB不工作。
+HRESP和HREADYPUT表示error的两个周期。
+AHB burst寻址时的地址不能超过1k。
+无wait stage时apb传输的2个周期。
+…
+
+## Coverage
+code coverage：95%。
+functional coverage：100%。每一个case是否成功运行，与前面列的设计测试用例对应上。
+
+
